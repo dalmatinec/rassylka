@@ -5,10 +5,10 @@
         "reserve": null
     },
     "links": {
-        "bot": "",
-        "ceo": "",
-        "operator": "",
-        "website": ""
+        "bot": "ссылка_на_бота",
+        "ceo": "ссылка_на_сео",
+        "operator": "ссылка_на_оператора",
+        "website": "ссылка_на_сайт"
     },
-    "operators": []
+    "operators": [id]
 }
