@@ -29,8 +29,8 @@ async def handle_support_message(message: types.Message):
     if user.id in operators or user.id in ADMIN_IDS:
         return
 
-    # Получаем операторов и админов
-    recipients = list(set(ADMIN_IDS + operators))
+    # Получаем только операторов
+    recipients = operators
 
     if not recipients:
         await message.answer(
@@ -102,14 +102,10 @@ async def handle_operator_reply(message: types.Message):
         await message.answer("❌ Не удалось определить пользователя")
         return
 
-    # Получаем имя оператора
-    operator_name = user.first_name or user.username or str(user.id)
-
     # Если ответ - текстовое сообщение
     if message.text:
         answer_text = (
             f"💬 Ответ поддержки\n\n"
-            f"👨‍💻 Ответил: {operator_name}\n\n"
             f"━━━━━━━━━━━━━━\n\n"
             f"{message.text}\n\n"
             f"━━━━━━━━━━━━━━"
@@ -130,13 +126,11 @@ async def handle_operator_reply(message: types.Message):
         try:
             caption = (
                 f"💬 Ответ поддержки\n\n"
-                f"👨‍💻 Ответил: {operator_name}\n\n"
                 f"━━━━━━━━━━━━━━\n\n"
                 f"{message.caption or ''}\n\n"
                 f"━━━━━━━━━━━━━━"
             ) if message.caption else (
                 f"💬 Ответ поддержки\n\n"
-                f"👨‍💻 Ответил: {operator_name}\n\n"
                 f"━━━━━━━━━━━━━━"
             )
             await message.bot.send_photo(
@@ -155,13 +149,11 @@ async def handle_operator_reply(message: types.Message):
         try:
             caption = (
                 f"💬 Ответ поддержки\n\n"
-                f"👨‍💻 Ответил: {operator_name}\n\n"
                 f"━━━━━━━━━━━━━━\n\n"
                 f"{message.caption or ''}\n\n"
                 f"━━━━━━━━━━━━━━"
             ) if message.caption else (
                 f"💬 Ответ поддержки\n\n"
-                f"👨‍💻 Ответил: {operator_name}\n\n"
                 f"━━━━━━━━━━━━━━"
             )
             await message.bot.send_video(
@@ -180,13 +172,11 @@ async def handle_operator_reply(message: types.Message):
         try:
             caption = (
                 f"💬 Ответ поддержки\n\n"
-                f"👨‍💻 Ответил: {operator_name}\n\n"
                 f"━━━━━━━━━━━━━━\n\n"
                 f"{message.caption or ''}\n\n"
                 f"━━━━━━━━━━━━━━"
             ) if message.caption else (
                 f"💬 Ответ поддержки\n\n"
-                f"👨‍💻 Ответил: {operator_name}\n\n"
                 f"━━━━━━━━━━━━━━"
             )
             await message.bot.send_document(
