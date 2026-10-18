@@ -1,0 +1,16 @@
+[Unit]
+Description=Rassylka bot (рассылка по группам)
+After=network-online.target nl-tunnel.service
+Wants=network-online.target nl-tunnel.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+WorkingDirectory=/root/rassylka
+ExecStart=/root/rassylka/venv/bin/python main.py
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
