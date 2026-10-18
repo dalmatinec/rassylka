@@ -34,7 +34,10 @@ if not BOT_TOKEN:
 ADMIN_IDS = _int_list(os.environ.get("ADMIN_IDS", ""))
 
 # ID админской группы
-ADMIN_GROUP_ID = int(os.environ.get("ADMIN_GROUP_ID", "0"))
+_admin_group = os.environ.get("ADMIN_GROUP_ID", "").strip()
+if not _admin_group.lstrip("-").isdigit():
+    raise SystemExit("ADMIN_GROUP_ID не задан или неверный. Впиши ID админской группы в файл .env")
+ADMIN_GROUP_ID = int(_admin_group)
 
 # Прокси/туннель. Например socks5://127.0.0.1:1080 . Пусто — без прокси.
 PROXY_URL = os.environ.get("PROXY_URL", "").strip()
