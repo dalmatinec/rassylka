@@ -68,6 +68,12 @@ class BotDatabase:
                 )
             ''')
             
+            # Миграция: разовые рассылки (is_once = 1 — отправить один раз, без повтора)
+            cursor.execute("PRAGMA table_info(posts)")
+            post_columns = {row[1] for row in cursor.fetchall()}
+            if "is_once" not in post_columns:
+                cursor.execute("ALTER TABLE posts ADD COLUMN is_once INTEGER NOT NULL DEFAULT 0")
+
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS post_groups (
                     post_id INTEGER,
@@ -265,12 +271,15 @@ class BotDatabase:
     
     def create_post(self, title: str, post_type: str, source_chat_id: int, 
                     message_id: int, interval: int) -> int:
+        """interval = 0 — разовая рассылка (is_once = 1), планировщик её не повторяет"""
+        is_once = 1 if interval <= 0 else 0
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
-                INSERT INTO posts (title, type, source_chat_id, message_id, interval, created_at)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', (title, post_type, source_chat_id, message_id, interval, int(datetime.now().timestamp())))
+                INSERT INTO posts (title, type, source_chat_id, message_id, interval, created_at, is_once)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (title, post_type, source_chat_id, message_id, max(interval, 0),
+                  int(datetime.now().timestamp()), is_once))
             conn.commit()
             return cursor.lastrowid
     
@@ -312,8 +321,8 @@ class BotDatabase:
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
-                UPDATE posts SET interval = ? WHERE id = ?
-            ''', (new_interval, post_id))
+                UPDATE posts SET interval = ?, is_once = ? WHERE id = ?
+            ''', (max(new_interval, 0), 1 if new_interval <= 0 else 0, post_id))
             conn.commit()
     
     def update_post_title(self, post_id: int, title: str) -> None:

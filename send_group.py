@@ -106,6 +106,9 @@ async def run_scheduled_mailing(bot: Bot):
             posts = db.get_all_posts()
 
             for post in posts:
+                # Разовые рассылки не повторяем
+                if post.get("is_once") or not post.get("interval"):
+                    continue
                 post_id = post["id"]
                 post_type = post["type"]
                 interval = post["interval"]

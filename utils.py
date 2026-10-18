@@ -112,6 +112,19 @@ def get_interval_name(minutes: int) -> str:
     return f"{minutes} минут"
 
 
+def interval_text(post_or_minutes) -> str:
+    """'🔁 каждые 2 часа' или '📤 один раз'"""
+    if isinstance(post_or_minutes, dict):
+        if post_or_minutes.get("is_once") or not post_or_minutes.get("interval"):
+            return "📤 один раз (без повтора)"
+        minutes = post_or_minutes["interval"]
+    else:
+        minutes = post_or_minutes
+        if not minutes:
+            return "📤 один раз (без повтора)"
+    return f"🔁 повтор: {get_interval_name(minutes)}"
+
+
 def format_time(timestamp: int) -> str:
     """
     Форматирование Unix timestamp в читаемый вид

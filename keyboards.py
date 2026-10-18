@@ -28,7 +28,8 @@ def get_posts_list_keyboard(posts: List[Dict[str, Any]]) -> InlineKeyboardMarkup
     for post in posts:
         post_id = post["id"]
         title = post["title"]
-        builder.button(text=f"{post_id}. {title}", callback_data=f"post_{post_id}")
+        mark = "📤 " if post.get("is_once") or not post.get("interval") else ""
+        builder.button(text=f"{mark}{post_id}. {title}", callback_data=f"post_{post_id}")
 
     builder.adjust(1)
     return builder.as_markup()
@@ -40,6 +41,7 @@ def get_post_detail_keyboard(post_id: int) -> InlineKeyboardMarkup:
     builder.button(text="✏️ Изменить название", callback_data=f"rename_post_{post_id}")
     builder.button(text="📢 Выбрать группы", callback_data=f"add_group_{post_id}")
     builder.button(text="➖ Убрать группы", callback_data=f"remove_group_{post_id}")
+    builder.button(text="📤 Отправить сейчас", callback_data=f"send_now_{post_id}")
     builder.button(text="🕒 Изменить интервал", callback_data=f"change_interval_{post_id}")
     builder.button(text="🗑 Удалить рассылку", callback_data=f"delete_post_{post_id}")
     builder.button(text="◀ Назад", callback_data="back_to_list")
@@ -109,6 +111,11 @@ def get_interval_keyboard(post_id: int, action: str = "edit") -> InlineKeyboardM
             text=interval_name,
             callback_data=f"{action}_interval_{post_id}_{interval_minutes}"
         )
+
+    builder.button(
+        text="📤 Один раз (без повтора)",
+        callback_data=f"{action}_interval_{post_id}_0"
+    )
 
     if post_id == 0:
         builder.button(text="◀ Назад", callback_data="cancel_create_0")

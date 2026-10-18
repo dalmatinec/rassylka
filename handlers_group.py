@@ -8,7 +8,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.exceptions import TelegramBadRequest
 
 from config import ADMIN_GROUP_ID
-from utils import is_admin
+from utils import is_admin, interval_text
 from database import get_database
 from keyboards import (
     get_posts_list_keyboard,
@@ -58,7 +58,8 @@ async def cmd_list(message: Message):
     text = "📋 Список рассылок:\n\n"
     for post in posts:
         groups_count = db.get_post_groups_count(post["id"])
-        text += f"{post['id']}. {post['title']} (групп: {groups_count})\n"
+        mark = "📤 " if post.get("is_once") or not post.get("interval") else ""
+        text += f"{mark}{post['id']}. {post['title']} (групп: {groups_count})\n"
 
     await message.answer(text, reply_markup=get_posts_list_keyboard(posts))
 
@@ -266,7 +267,9 @@ async def done_groups_selection(callback: CallbackQuery, state: FSMContext):
     await state.set_state(CreatePostStates.waiting_for_interval)
 
     await callback.message.edit_text(
-        "🕒 Выберите интервал рассылки:",
+        "🕒 Как отправлять?\n\n"
+        "Интервал — бот будет сам повторять рассылку.\n"
+        "«📤 Один раз» — отправит сейчас и больше не повторит.",
         reply_markup=get_interval_keyboard(0, "create")
     )
     await callback.answer()
@@ -303,7 +306,7 @@ async def process_interval_for_post(callback: CallbackQuery, state: FSMContext):
         f"📝 Проверьте данные рассылки:\n\n"
         f"📌 Название: {title}\n"
         f"📤 Тип: forward\n"
-        f"🕒 Интервал: {interval} минут\n"
+        f"🕒 Режим: {interval_text(interval)}\n"
         f"📢 Групп: {len(selected_groups)}\n\n"
         f"Список групп:\n" + "\n".join(groups_text) + "\n\n"
         f"Подтвердить создание?"
@@ -342,22 +345,28 @@ async def confirm_create_post(callback: CallbackQuery, state: FSMContext):
 
     db.add_groups_to_post(post_id, selected_groups)
 
-    # Отправляем сразу после создания
-    if reply_message:
-        await forward_to_group(callback.bot, post_id)
-
     await state.clear()
+    await callback.answer()
+    await callback.message.edit_text(f"⏳ Отправляю в {len(selected_groups)} групп...")
+
+    # Отправляем сразу после создания
+    report = await forward_to_group(callback.bot, post_id)
+    stats = report.split("\n", 1)[1] if "\n" in report else report
+
+    if not interval:
+        tail = "📤 Разовая рассылка — больше повторяться не будет.\nПовторить можно кнопкой «📤 Отправить сейчас»."
+    else:
+        tail = f"🔁 Дальше — автоматически, {interval_text(interval)[2:]}."
 
     await callback.message.edit_text(
-        f"✅ Рассылка #{post_id} создана!\n\n"
+        f"✅ Рассылка #{post_id} создана и отправлена!\n\n"
         f"📌 Название: {title}\n"
-        f"📤 Тип: forward\n"
-        f"🕒 Интервал: {interval} минут\n"
+        f"🕒 Режим: {interval_text(interval)}\n"
         f"📢 Групп: {len(selected_groups)}\n\n"
-        f"📨 Первая отправка выполнена!",
+        f"{stats}\n\n"
+        f"{tail}",
         reply_markup=get_back_keyboard("back_to_list")
     )
-    await callback.answer()
 
 
 @router.callback_query(
@@ -414,7 +423,7 @@ async def show_post_detail(callback: CallbackQuery):
         f"━━━━━━━━━━━━━━━━━\n"
         f"📌 Название: {post_info['title']}\n"
         f"📤 Тип: {post_info['type']}\n"
-        f"⏱ Интервал: {post_info['interval']} минут\n"
+        f"⏱ Режим: {interval_text(post_info)}\n"
         f"📊 Групп: {post_info['groups_count']}\n"
         f"━━━━━━━━━━━━━━━━━\n"
         f"📢 Список групп:\n{groups_text}"
@@ -442,7 +451,8 @@ async def back_to_list(callback: CallbackQuery):
     text = "📋 Список рассылок:\n\n"
     for post in posts:
         groups_count = db.get_post_groups_count(post["id"])
-        text += f"{post['id']}. {post['title']} (групп: {groups_count})\n"
+        mark = "📤 " if post.get("is_once") or not post.get("interval") else ""
+        text += f"{mark}{post['id']}. {post['title']} (групп: {groups_count})\n"
 
     await callback.message.edit_text(text, reply_markup=get_posts_list_keyboard(posts))
     await callback.answer()
@@ -699,6 +709,32 @@ async def rename_post_finish(message: Message, state: FSMContext):
     )
 
 
+@router.callback_query(F.data.startswith("send_now_"))
+async def send_post_now(callback: CallbackQuery):
+    """Разово отправить рассылку прямо сейчас (интервал не сбивается)"""
+    if not is_admin(callback.from_user.id):
+        await callback.answer("⛔ Доступ запрещен", show_alert=True)
+        return
+    if not is_admin_group(callback.message.chat.id):
+        await callback.answer("⛔ Не админская группа", show_alert=True)
+        return
+
+    post_id = int(callback.data.split("_")[2])
+    if not db.post_exists(post_id):
+        await callback.message.edit_text("❌ Рассылка не найдена.")
+        await callback.answer()
+        return
+    count = db.get_post_groups_count(post_id)
+    if not count:
+        await callback.answer("❌ У рассылки нет групп", show_alert=True)
+        return
+
+    await callback.answer()
+    await callback.message.edit_text(f"⏳ Отправляю рассылку #{post_id} в {count} групп...")
+    report = await forward_to_group(callback.bot, post_id)
+    await callback.message.edit_text(report, reply_markup=get_back_keyboard(f"post_{post_id}"))
+
+
 @router.callback_query(F.data.startswith("change_interval_"))
 async def change_interval(callback: CallbackQuery):
     if not is_admin(callback.from_user.id):
@@ -716,7 +752,9 @@ async def change_interval(callback: CallbackQuery):
         return
 
     await callback.message.edit_text(
-        f"🕒 Выберите новый интервал для рассылки #{post_id}:",
+        f"🕒 Как отправлять рассылку #{post_id}?\n\n"
+        f"Интервал — бот будет сам повторять.\n"
+        f"«Один раз» — без повтора.",
         reply_markup=get_interval_keyboard(post_id, "edit")
     )
     await callback.answer()
@@ -738,7 +776,7 @@ async def set_interval(callback: CallbackQuery):
     db.update_post_interval(post_id, interval)
 
     await callback.message.edit_text(
-        f"✅ Интервал обновлен на {interval} минут!",
+        f"✅ Режим рассылки #{post_id}: {interval_text(interval)}",
         reply_markup=get_back_keyboard(f"post_{post_id}")
     )
     await callback.answer()
