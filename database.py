@@ -144,6 +144,26 @@ class BotDatabase:
     
     # ========== АДМИНЫ ==========
 
+    def get_admins(self) -> List[Dict[str, Any]]:
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM admins ORDER BY added_at')
+            return [dict(row) for row in cursor.fetchall()]
+
+    def add_admin(self, user_id: int, username: Optional[str]) -> None:
+        with self._get_connection() as conn:
+            conn.execute('''
+                INSERT INTO admins (user_id, username, added_at) VALUES (?, ?, ?)
+                ON CONFLICT(user_id) DO UPDATE SET username = excluded.username
+            ''', (user_id, username, int(datetime.now().timestamp())))
+            conn.commit()
+
+    def remove_admin(self, user_id: int) -> bool:
+        with self._get_connection() as conn:
+            cursor = conn.execute('DELETE FROM admins WHERE user_id = ?', (user_id,))
+            conn.commit()
+            return cursor.rowcount > 0
+
     def get_admin_ids(self) -> set:
         with self._get_connection() as conn:
             cursor = conn.cursor()

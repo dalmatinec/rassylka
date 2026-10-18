@@ -39,6 +39,10 @@ if not _admin_group.lstrip("-").isdigit():
     raise SystemExit("ADMIN_GROUP_ID не задан или неверный. Впиши ID админской группы в файл .env")
 ADMIN_GROUP_ID = int(_admin_group)
 
+# 1 — любой участник админской группы может управлять рассылками и группами.
+# 0 — только админы (из ADMIN_IDS и выданные командой /addadmin).
+ALL_ADMINS = os.environ.get("ALL_ADMINS", "0").strip().lower() in ("1", "true", "yes", "да")
+
 # Прокси/туннель. Например socks5://127.0.0.1:1080 . Пусто — без прокси.
 PROXY_URL = os.environ.get("PROXY_URL", "").strip()
 

@@ -27,7 +27,7 @@ from keyboards import (
     get_group_delete_confirm_keyboard,
     get_groups_back_keyboard,
 )
-from utils import is_group_unreachable, is_admin
+from utils import is_group_unreachable, can_manage as is_admin
 
 logger = logging.getLogger(__name__)
 router = Router()

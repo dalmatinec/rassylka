@@ -8,7 +8,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.exceptions import TelegramBadRequest
 
 from config import ADMIN_GROUP_ID
-from utils import is_admin, interval_text
+from utils import can_manage as is_admin, interval_text
 from database import get_database
 from keyboards import (
     get_posts_list_keyboard,

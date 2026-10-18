@@ -6,7 +6,7 @@ from typing import List, Dict, Any
 
 from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest, TelegramNotFound
 
-from config import INTERVALS, ADMIN_IDS
+from config import INTERVALS, ADMIN_IDS, ALL_ADMINS
 
 logger = logging.getLogger(__name__)
 
@@ -151,6 +151,12 @@ async def run_in_background(func, *args, **kwargs):
         await func(*args, **kwargs)
     except Exception as e:
         logger.error(f"Ошибка в фоновой задаче: {e}")
+
+def can_manage(user_id: int) -> bool:
+    """Кто может пользоваться кнопками в админской группе.
+    При ALL_ADMINS=1 — любой участник админской группы (сама группа проверяется отдельно)."""
+    return ALL_ADMINS or is_admin(user_id)
+
 
 def is_admin(user_id: int) -> bool:
     """Админ — если он в ADMIN_IDS из .env или в таблице admins в базе."""

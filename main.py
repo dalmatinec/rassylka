@@ -10,6 +10,7 @@ from config import BOT_TOKEN, PROXY_URL
 from handlers_user import router as user_router
 from handlers_group import router as group_router
 from groups import router as groups_router
+from admins import router as admins_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -46,6 +47,7 @@ async def main():
     dp.include_router(user_router)
     dp.include_router(group_router)
     dp.include_router(groups_router)
+    dp.include_router(admins_router)
 
     # Сначала сетевой вызов, ПОТОМ фоновые задачи — чтобы планировщик
     # рассылок не конкурировал за event loop прямо в момент старта бота.
