@@ -462,10 +462,14 @@ async def process_add_group_id(message: Message, state: FSMContext, bot: Bot):
     if not _allowed(message.chat.id, message.from_user.id):
         return
     try:
-        chat_id = int(message.text.strip())
+        chat_id = int(message.text.strip().replace(" ", ""))
     except ValueError:
         await message.reply("❌ ID должен быть числом. Отправьте ещё раз или /cancel:")
         return
+
+    # ID групп Telegram отрицательные (-100...). Если прислали без минуса — исправляем.
+    if chat_id > 0:
+        chat_id = -chat_id
 
     if db.get_group(chat_id):
         await state.clear()
@@ -473,25 +477,34 @@ async def process_add_group_id(message: Message, state: FSMContext, bot: Bot):
                             reply_markup=get_groups_back_keyboard(0))
         return
 
-    # Пробуем узнать название автоматически
+    # Без проверки ничего не сохраняем: чат должен существовать и бот должен быть в нём
     try:
         chat = await bot.get_chat(chat_id)
-        title = (chat.title or "Без названия")[:100]
+        me = await bot.get_me()
+        member = await bot.get_chat_member(chat.id, me.id)
+        if member.status in ("left", "kicked"):
+            raise ValueError("бота нет в группе")
     except Exception as e:
-        logger.info(f"get_chat({chat_id}) не сработал: {e}")
-        await state.update_data(chat_id=chat_id)
-        await state.set_state(AddGroupStates.waiting_for_title)
+        logger.info(f"Добавление {chat_id} отклонено: {e}")
+        await state.clear()
         await message.reply(
-            f"⚠️ Не удалось получить название группы автоматически "
-            f"(возможно, бота там нет).\n\nОтправьте название вручную:"
+            f"❌ Не получилось добавить <code>{chat_id}</code>.\n\n"
+            "Проверь:\n"
+            "• ID с минусом, например <code>-1004400606061</code>\n"
+            "• бот уже добавлен в эту группу",
+            reply_markup=get_groups_back_keyboard(0)
         )
         return
 
-    db.add_group(chat_id, title)
+    title = (chat.title or "Без названия")[:100]
+    # Сохраняем ID, который вернул Telegram, а не то, что ввели
+    db.add_group(chat.id, title)
     await state.clear()
-    logger.info(f"✅ Группа {chat_id} ({title}) добавлена вручную")
+    logger.info(f"✅ Группа {chat.id} ({title}) добавлена вручную")
     await message.reply(
-        f"✅ Группа добавлена: <b>{_esc(title)}</b>\nТеперь её можно выбирать в рассылках.",
+        f"✅ Группа добавлена: <b>{_esc(title)}</b>\n"
+        f"ID: <code>{chat.id}</code>\n"
+        f"Теперь её можно выбирать в рассылках.",
         reply_markup=get_groups_back_keyboard(0)
     )
 
